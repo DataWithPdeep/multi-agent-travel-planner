@@ -170,3 +170,29 @@ async def forecast(city: str):
     return await tool.ainvoke({
         "city": city
     })
+
+
+if __name__ == "__main__":
+    import asyncio
+ async def test():
+        print("\n===== TEST AVIATIONSTACK =====")
+        try:
+            tools = await aviation_client.get_tools()
+            print("AVIATIONSTACK SUCCESS")
+            print([tool.name for tool in tools])
+        except Exception as e:
+            print("AVIATIONSTACK ERROR:")
+            import traceback
+            traceback.print_exc()
+
+        print("\n===== TEST WEATHER =====")
+        try:
+            tools = await weather_client.get_tools()
+            print("WEATHER SUCCESS")
+            print([tool.name for tool in tools])
+        except Exception as e:
+            print("WEATHER ERROR:")
+            import traceback
+            traceback.print_exc()
+
+    asyncio.run(test())

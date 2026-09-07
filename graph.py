@@ -112,6 +112,6 @@ def build_graph():
                 checkpointer=checkpointer
             )
 
-return graph.compile()
+        return graph.compile()
 
 app = build_graph()

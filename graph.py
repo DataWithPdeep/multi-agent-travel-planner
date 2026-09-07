@@ -93,19 +93,25 @@ def build_graph():
     # POSTGRES CHECKPOINTER
     # =========================
 
+    # =========================
+# POSTGRES CHECKPOINTER
+# =========================
+
     if DATABASE_URL:
-
-        conn = psycopg.connect(DATABASE_URL)
-
+    
+        conn = psycopg.connect(
+            DATABASE_URL,
+            autocommit=True
+        )
+    
         checkpointer = PostgresSaver(conn)
-
+    
         checkpointer.setup()
-
+    
         return graph.compile(
             checkpointer=checkpointer
         )
 
-    return graph.compile()
-
+return graph.compile()
 
 app = build_graph()

@@ -8,3 +8,5 @@ psycopg[binary]
 requests
 langgraph-checkpoint-postgres
 psycopg[binary]
+aviationstack-mcp
+mcp[cli]>=1.10.1

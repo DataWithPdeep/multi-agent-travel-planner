@@ -10,40 +10,53 @@ TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 AVIATION_STACK_API_KEY = os.getenv("AVIATIONSTACK_API_KEY")
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
+import os
+import sys
+from dotenv import load_dotenv
+from langchain_mcp_adapters.client import MultiServerMCPClient
+
+load_dotenv()
+
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+AVIATION_STACK_API_KEY = os.getenv("AVIATIONSTACK_API_KEY")
+OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+WEATHER_MCP_PATH = os.path.join(BASE_DIR, "custom_mcp.py")
+
 client = MultiServerMCPClient(
     {
         "tavily": {
             "transport": "streamable_http",
-            "url":  f"https://mcp.tavily.com/mcp/?tavilyApiKey={TAVILY_API_KEY}"
+            "url": f"https://mcp.tavily.com/mcp/?tavilyApiKey={TAVILY_API_KEY}"
         },
 
         "aviationstack": {
-                    "transport": "stdio",
-                    "command": r"C:\Users\psran\OneDrive\Desktop\multi_agentmcp\aviationstack-mcp\.venv\Scripts\python.exe",
-                    "args": [
-                        "-m",
-                        "aviationstack_mcp",
-                        "mcp",
-                        "run"
-                    ],
-                    "env": {
-                        "AVIATION_STACK_API_KEY": AVIATION_STACK_API_KEY
-                    }
-                },
+            "transport": "stdio",
+            "command": sys.executable,
+            "args": [
+                "-m",
+                "aviationstack_mcp",
+                "mcp",
+                "run"
+            ],
+            "env": {
+                "AVIATION_STACK_API_KEY": AVIATION_STACK_API_KEY
+            }
+        },
 
         "weather": {
-                        "transport": "stdio",
-                        "command": r"C:\Users\psran\OneDrive\Desktop\multi_agent1\langraph_env3\Scripts\python.exe",
-                        "args": [
-                            r"C:\Users\psran\OneDrive\Desktop\multi_agentmcp\custom_mcp.py"
-                        ],
-                        "env": {
-                            "OPENWEATHER_API_KEY": OPENWEATHER_API_KEY
-                        }
-                    }
+            "transport": "stdio",
+            "command": sys.executable,
+            "args": [
+                WEATHER_MCP_PATH
+            ],
+            "env": {
+                "OPENWEATHER_API_KEY": OPENWEATHER_API_KEY
+            }
+        }
     }
 )
-
 # Cache tools so we don't load them repeatedly
 _tools_cache = None
 

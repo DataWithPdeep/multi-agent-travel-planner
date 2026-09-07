@@ -1,235 +1,83 @@
+from mcp.server.fastmcp import FastMCP
+import requests
 import os
-import sys
 
 from dotenv import load_dotenv
-from langchain_mcp_adapters.client import MultiServerMCPClient
 
 load_dotenv()
 
-TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
-AVIATION_STACK_API_KEY = os.getenv("AVIATIONSTACK_API_KEY")
+mcp = FastMCP("Weather Server")
+
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
 
-# --------------------------------------------------
-# Current project directory
-# --------------------------------------------------
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-WEATHER_MCP_PATH = os.path.join(
-    BASE_DIR,
-    "custom_mcp.py"
-)
-
-
-# --------------------------------------------------
-# MCP CLIENT
-# --------------------------------------------------
-
-client = MultiServerMCPClient(
-    {
-
-        # --------------------------------------------------
-        # TAVILY
-        # --------------------------------------------------
-
-        "tavily": {
-            "transport": "streamable_http",
-            "url": (
-                f"https://mcp.tavily.com/mcp/"
-                f"?tavilyApiKey={TAVILY_API_KEY}"
-            ),
+@mcp.tool()
+def get_current_weather(city: str):
+    response = requests.get(
+        "https://api.openweathermap.org/data/2.5/weather",
+        params={
+            "q": city,
+            "appid": OPENWEATHER_API_KEY,
+            "units": "metric",
         },
+    )
 
+    data = response.json()
 
-        # --------------------------------------------------
-        # AVIATIONSTACK
-        # --------------------------------------------------
+    if response.status_code != 200:
+        return {
+            "error": data.get(
+                "message",
+                "Weather API request failed"
+            )
+        }
 
-        "aviationstack": {
-
-            "transport": "stdio",
-
-            # Cloud Linux environment
-            "command": sys.executable,
-
-            "args": [
-                "-m",
-                "aviationstack_mcp",
-                "mcp",
-                "run",
-            ],
-
-            "env": {
-                "AVIATION_STACK_API_KEY": AVIATION_STACK_API_KEY
-            },
-        },
-
-
-        # --------------------------------------------------
-        # WEATHER
-        # --------------------------------------------------
-
-        "weather": {
-
-            "transport": "stdio",
-
-            # Use the same Python environment as Streamlit
-            "command": sys.executable,
-
-            "args": [
-                WEATHER_MCP_PATH
-            ],
-
-            "env": {
-                "OPENWEATHER_API_KEY": OPENWEATHER_API_KEY
-            },
-        },
+    return {
+        "city": data["name"],
+        "temperature_c": data["main"]["temp"],
+        "feels_like_c": data["main"]["feels_like"],
+        "humidity": data["main"]["humidity"],
+        "condition": data["weather"][0]["description"],
+        "wind_speed": data["wind"]["speed"],
     }
-)
 
 
-# --------------------------------------------------
-# CACHE MCP TOOLS
-# --------------------------------------------------
+@mcp.tool()
+def get_forecast(city: str):
+    url = "https://api.openweathermap.org/data/2.5/forecast"
 
-_tools_cache = None
+    params = {
+        "q": city,
+        "appid": OPENWEATHER_API_KEY,
+        "units": "metric",
+    }
 
+    response = requests.get(url, params=params)
 
-async def get_tools():
+    data = response.json()
 
-    global _tools_cache
-
-    if _tools_cache is None:
-
-        try:
-
-            _tools_cache = await client.get_tools()
-
-            print(
-                "\n========== AVAILABLE MCP TOOLS =========="
+    if response.status_code != 200:
+        return {
+            "error": data.get(
+                "message",
+                "Forecast API request failed"
             )
-
-            for tool in _tools_cache:
-                print(tool.name)
-
-            print(
-                "=========================================\n"
-            )
-
-        except Exception as e:
-
-            print(
-                "\n========== FULL ERROR =========="
-            )
-
-            print(type(e))
-            print(repr(e))
-
-            raise
-
-    return _tools_cache
-
-
-# --------------------------------------------------
-# CALL TOOL
-# --------------------------------------------------
-
-async def call_tool(
-    tool_name: str,
-    args: dict = None
-):
-
-    tools = await get_tools()
-
-    tool = next(
-        (
-            tool
-            for tool in tools
-            if tool.name == tool_name
-        ),
-        None,
-    )
-
-    if tool is None:
-
-        raise ValueError(
-            f"Tool '{tool_name}' not found"
-        )
-
-    return await tool.ainvoke(
-        args or {}
-    )
-
-
-# --------------------------------------------------
-# TAVILY
-# --------------------------------------------------
-
-async def tavily_search(query: str):
-
-    return await call_tool(
-        "tavily_search",
-        {
-            "query": query
         }
-    )
+
+    forecast = []
+
+    for item in data["list"][:5]:
+        forecast.append({
+            "datetime": item["dt_txt"],
+            "temperature": item["main"]["temp"],
+            "weather": item["weather"][0]["description"],
+        })
+
+    return {
+        "city": city,
+        "forecast": forecast,
+    }
 
 
-# --------------------------------------------------
-# AVIATIONSTACK
-# --------------------------------------------------
-
-async def list_airports(
-    search: str = "",
-    limit: int = 10
-):
-
-    return await call_tool(
-        "list_airports",
-        {
-            "search": search,
-            "limit": limit,
-            "offset": 0
-        }
-    )
-
-
-async def list_airlines(
-    search: str = "",
-    limit: int = 10
-):
-
-    return await call_tool(
-        "list_airlines",
-        {
-            "search": search,
-            "limit": limit,
-            "offset": 0
-        }
-    )
-
-
-# --------------------------------------------------
-# WEATHER
-# --------------------------------------------------
-
-async def current_weather(city: str):
-
-    return await call_tool(
-        "get_current_weather",
-        {
-            "city": city
-        }
-    )
-
-
-async def forecast(city: str):
-
-    return await call_tool(
-        "get_forecast",
-        {
-            "city": city
-        }
-    )
+if __name__ == "__main__":
+    mcp.run(transport="stdio")

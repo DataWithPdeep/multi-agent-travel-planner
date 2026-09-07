@@ -6,3 +6,5 @@ langchain-mcp-adapters
 python-dotenv
 psycopg[binary]
 requests
+langgraph-checkpoint-postgres
+psycopg[binary]

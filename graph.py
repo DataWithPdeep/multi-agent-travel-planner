@@ -1,4 +1,5 @@
-```python
+import psycopg
+
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.graph import END, START, StateGraph
 
@@ -17,37 +18,26 @@ from config import DATABASE_URL
 from state import TravelState
 
 
-# ============================================================
-# BUILD GRAPH
-# ============================================================
-
 def build_graph():
 
     graph = StateGraph(TravelState)
 
-    # ========================================================
+    # -----------------------------
     # ADD NODES
-    # ========================================================
+    # -----------------------------
 
     graph.add_node("supervisor", supervisor_agent)
-
     graph.add_node("flight_agent", flight_agent)
-
     graph.add_node("hotel_agent", hotel_agent)
-
     graph.add_node("weather_agent", weather_agent)
-
     graph.add_node("budget_agent", budget_agent)
-
     graph.add_node("itinerary_agent", itinerary_agent)
-
     graph.add_node("human_approval", human_approval_agent)
-
     graph.add_node("final_response", final_response_agent)
 
-    # ========================================================
+    # -----------------------------
     # EDGES
-    # ========================================================
+    # -----------------------------
 
     graph.add_edge(START, "supervisor")
 
@@ -67,37 +57,34 @@ def build_graph():
 
     graph.add_edge("final_response", END)
 
-    # ========================================================
+    # -----------------------------
     # POSTGRES CHECKPOINTER
-    # ========================================================
+    # -----------------------------
 
     if DATABASE_URL:
 
-        # Create PostgresSaver using the connection string.
-        # This lets the checkpoint package manage the
-        # PostgreSQL connection lifecycle.
-        checkpointer = PostgresSaver.from_conn_string(
-            DATABASE_URL
+        conn = psycopg.connect(
+            DATABASE_URL,
+            autocommit=True
         )
 
-        # Create/update checkpoint tables
+        checkpointer = PostgresSaver(conn)
+
         checkpointer.setup()
 
-        # Compile graph with PostgreSQL persistence
         return graph.compile(
             checkpointer=checkpointer
         )
 
-    # ========================================================
+    # -----------------------------
     # FALLBACK
-    # ========================================================
+    # -----------------------------
 
     return graph.compile()
 
 
-# ============================================================
-# BUILD APPLICATION
-# ============================================================
+# -----------------------------
+# BUILD APP
+# -----------------------------
 
 app = build_graph()
-```

@@ -1,4 +1,6 @@
-import psycopg
+```python
+from psycopg_pool import ConnectionPool
+from psycopg.rows import dict_row
 
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.graph import END, START, StateGraph
@@ -18,13 +20,17 @@ from config import DATABASE_URL
 from state import TravelState
 
 
+# ============================================================
+# BUILD GRAPH
+# ============================================================
+
 def build_graph():
 
     graph = StateGraph(TravelState)
 
-    # -----------------------------
+    # ========================================================
     # ADD NODES
-    # -----------------------------
+    # ========================================================
 
     graph.add_node("supervisor", supervisor_agent)
     graph.add_node("flight_agent", flight_agent)
@@ -35,9 +41,9 @@ def build_graph():
     graph.add_node("human_approval", human_approval_agent)
     graph.add_node("final_response", final_response_agent)
 
-    # -----------------------------
+    # ========================================================
     # EDGES
-    # -----------------------------
+    # ========================================================
 
     graph.add_edge(START, "supervisor")
 
@@ -57,34 +63,45 @@ def build_graph():
 
     graph.add_edge("final_response", END)
 
-    # -----------------------------
+    # ========================================================
     # POSTGRES CHECKPOINTER
-    # -----------------------------
+    # ========================================================
 
     if DATABASE_URL:
 
-        conn = psycopg.connect(
-            DATABASE_URL,
-            autocommit=True
+        pool = ConnectionPool(
+            conninfo=DATABASE_URL,
+            min_size=1,
+            max_size=5,
+            kwargs={
+                "autocommit": True,
+                "prepare_threshold": 0,
+                "row_factory": dict_row,
+            },
         )
 
-        checkpointer = PostgresSaver(conn)
+        # Wait until the pool has established a connection
+        pool.wait()
 
+        checkpointer = PostgresSaver(pool)
+
+        # Create/update checkpoint tables
         checkpointer.setup()
 
         return graph.compile(
             checkpointer=checkpointer
         )
 
-    # -----------------------------
+    # ========================================================
     # FALLBACK
-    # -----------------------------
+    # ========================================================
 
     return graph.compile()
 
 
-# -----------------------------
-# BUILD APP
-# -----------------------------
+# ============================================================
+# BUILD APPLICATION
+# ============================================================
 
 app = build_graph()
+```

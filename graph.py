@@ -1,4 +1,5 @@
 import psycopg
+from psycopg_pool import ConnectionPool
 
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.graph import END, START, StateGraph
@@ -18,7 +19,16 @@ from config import DATABASE_URL
 from state import TravelState
 
 
+# -----------------------------
+# POSTGRES CONNECTION POOL
+# -----------------------------
+
+pool = None
+
+
 def build_graph():
+
+    global pool
 
     graph = StateGraph(TravelState)
 
@@ -63,12 +73,17 @@ def build_graph():
 
     if DATABASE_URL:
 
-        conn = psycopg.connect(
-            DATABASE_URL,
-            autocommit=True
+        pool = ConnectionPool(
+            conninfo=DATABASE_URL,
+            min_size=1,
+            max_size=5,
+            kwargs={
+                "autocommit": True
+            },
+            open=True,
         )
 
-        checkpointer = PostgresSaver(conn)
+        checkpointer = PostgresSaver(pool)
 
         checkpointer.setup()
 

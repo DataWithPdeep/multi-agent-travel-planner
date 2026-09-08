@@ -5,6 +5,7 @@ langchain-groq
 langchain-mcp-adapters
 python-dotenv
 psycopg[binary]
+psycopg-pool
 requests
 langgraph-checkpoint-postgres
 psycopg[binary]
